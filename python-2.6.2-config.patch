@@ -224,10 +224,10 @@ diff -up Python-2.6.2/Modules/Setup.dist.rhconfig Python-2.6.2/Modules/Setup.dis
 -#DBINC=$(DB)/include
 -#DBLIB=$(DB)/lib
 -#_bsddb _bsddb.c -I$(DBINC) -L$(DBLIB) -ldb-$(DBLIBVER)
-+DBLIBVER=4.7
-+DBINC=/usr/include/db4
-+DBLIB=/usr/lib
-+_bsddb _bsddb.c -I$(DBINC) -L$(DBLIB) -ldb-$(DBLIBVER)
++#DBLIBVER=4.7
++#DBINC=/usr/include/db4
++#DBLIB=/usr/lib
++#_bsddb _bsddb.c -I$(DBINC) -L$(DBLIB) -ldb-$(DBLIBVER)
  
  # Historical Berkeley DB 1.85
  #

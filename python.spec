@@ -566,7 +566,6 @@ BuildRequires: libGL-devel tk tix gcc-c++ libX11-devel glibc-devel
 BuildRequires: bzip2 tar /usr/bin/find pkgconfig tcl-devel tk-devel
 BuildRequires: tix-devel bzip2-devel sqlite-devel
 BuildRequires: autoconf
-BuildRequires: db4-devel >= 4.7
 BuildRequires: libffi-devel
 %if 0%{?with_valgrind}
 BuildRequires: valgrind-devel
@@ -576,6 +575,7 @@ BuildRequires: valgrind-devel
 BuildRequires: systemtap-sdt-devel
 %global tapsetdir      /usr/share/systemtap/tapset
 %endif
+
 
 URL: http://www.python.org/
 

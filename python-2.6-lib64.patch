@@ -113,11 +113,11 @@ diff -up Python-2.6.6/Modules/Setup.dist.lib64 Python-2.6.6/Modules/Setup.dist
 +++ Python-2.6.6/Modules/Setup.dist	2010-11-29 15:02:02.415600754 -0500
 @@ -413,7 +413,7 @@ gdbm gdbmmodule.c -lgdbm
  # and the subdirectory of PORT where you built it.
- DBLIBVER=4.7
- DBINC=/usr/include/db4
--DBLIB=/usr/lib
-+DBLIB=/usr/lib64
- _bsddb _bsddb.c -I$(DBINC) -L$(DBLIB) -ldb-$(DBLIBVER)
+ #DBLIBVER=4.7
+ #DBINC=/usr/include/db4
+-#DBLIB=/usr/lib
++#DBLIB=/usr/lib64
+ #_bsddb _bsddb.c -I$(DBINC) -L$(DBLIB) -ldb-$(DBLIBVER)
  
  # Historical Berkeley DB 1.85
 @@ -459,7 +459,7 @@ cPickle cPickle.c
