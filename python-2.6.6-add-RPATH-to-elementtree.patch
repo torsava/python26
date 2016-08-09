@@ -1,0 +1,20 @@
+--- setup.py	2013-06-06 07:34:57.722819944 -0400
++++ setup.py.add-RPATH-to-elementtree	2013-06-06 07:43:38.992698883 -0400
+@@ -1336,6 +1336,9 @@ class PyBuildExt(build_ext):
+         # Fredrik Lundh's cElementTree module.  Note that this also
+         # uses expat (via the CAPI hook in pyexpat).
+ 
++        # Add an explicit RPATH to _elementtree.so (rhbz#962779)
++        EXPAT_RPATH = '/lib64' if sys.maxint == 0x7fffffffffffffff else '/lib'
++
+         if os.path.isfile(os.path.join(srcdir, 'Modules', '_elementtree.c')):
+             define_macros.append(('USE_PYEXPAT_CAPI', None))
+             exts.append(Extension('_elementtree',
+@@ -1343,6 +1346,7 @@ class PyBuildExt(build_ext):
+                                   include_dirs = expat_inc,
+                                   libraries = expat_lib,
+                                   sources = ['_elementtree.c'],
++                                  extra_link_args = ['-Wl,-rpath,%s' % EXPAT_RPATH]
+                                   ))
+         else:
+             missing.append('_elementtree')

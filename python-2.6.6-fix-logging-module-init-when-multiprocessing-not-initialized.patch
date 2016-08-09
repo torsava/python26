@@ -1,0 +1,32 @@
+# HG changeset patch
+# User Vinay Sajip <vinay_sajip@yahoo.co.uk>
+# Date 1269261188 0
+# Node ID 5b3a601ed205b5b403fc35218099a381ddcaf2e0
+# Parent  52cf7e65dad14bab261c8008393e9e1e4802ddb2
+Issue #8200: logging: Handle errors when multiprocessing is not fully loaded when logging occurs.
+
+diff --git a/Lib/logging/__init__.py b/Lib/logging/__init__.py
+--- a/Lib/logging/__init__.py
++++ b/Lib/logging/__init__.py
+@@ -287,10 +287,18 @@ class LogRecord(object):
+             self.threadName = None
+         if not logMultiprocessing:
+             self.processName = None
+-        elif 'multiprocessing' not in sys.modules:
++        else:
+             self.processName = 'MainProcess'
+-        else:
+-            self.processName = sys.modules['multiprocessing'].current_process().name
++            mp = sys.modules.get('multiprocessing')
++            if mp is not None:
++                # Errors may occur if multiprocessing has not finished loading
++                # yet - e.g. if a custom import hook causes third-party code
++                # to run when multiprocessing calls import. See issue 8200
++                # for an example
++                try:
++                    self.processName = mp.current_process().name
++                except StandardError:
++                    pass
+         if logProcesses and hasattr(os, 'getpid'):
+             self.process = os.getpid()
+         else:

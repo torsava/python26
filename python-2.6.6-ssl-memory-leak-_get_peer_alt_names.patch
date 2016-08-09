@@ -1,0 +1,11 @@
+diff -up Python-2.6.6/Modules/_ssl.c.orig Python-2.6.6/Modules/_ssl.c
+--- Python-2.6.6/Modules/_ssl.c.orig	2013-09-04 12:22:30.749849826 +0200
++++ Python-2.6.6/Modules/_ssl.c	2013-09-04 12:22:34.489846787 +0200
+@@ -838,6 +838,7 @@ _get_peer_alt_names (X509 *certificate)
+             }
+             Py_DECREF(t);
+         }
++        sk_GENERAL_NAME_pop_free(names, GENERAL_NAME_free);
+     }
+     BIO_free(biobuf);
+     if (peer_alt_names != Py_None) {

@@ -1,0 +1,23 @@
+diff -up Python-2.6.6/Lib/cProfile.py.sort Python-2.6.6/Lib/cProfile.py
+--- Python-2.6.6/Lib/cProfile.py.sort	2015-02-09 12:45:46.525657065 +0100
++++ Python-2.6.6/Lib/cProfile.py	2015-02-09 12:45:05.266316315 +0100
+@@ -161,7 +161,7 @@ def label(code):
+ # ____________________________________________________________
+ 
+ def main():
+-    import os, sys
++    import os, pstats, sys
+     from optparse import OptionParser
+     usage = "cProfile.py [-o output_file_path] [-s sort] scriptfile [arg] ..."
+     parser = OptionParser(usage=usage)
+@@ -169,7 +169,9 @@ def main():
+     parser.add_option('-o', '--outfile', dest="outfile",
+         help="Save stats to <outfile>", default=None)
+     parser.add_option('-s', '--sort', dest="sort",
+-        help="Sort order when printing to stdout, based on pstats.Stats class", default=-1)
++        help="Sort order when printing to stdout, based on pstats.Stats class",
++        default=-1,
++        choices=pstats.Stats.sort_arg_dict_default.keys())
+ 
+     if not sys.argv[1:]:
+         parser.print_usage()

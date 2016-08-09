@@ -1,0 +1,352 @@
+diff -u Python-2.6.6/Lib/ConfigParser.py Python-2.6.6/Lib/ConfigParser.py
+--- Python-2.6.6/Lib/ConfigParser.py	2013-11-12 12:19:10.019090124 +0100
++++ Python-2.6.6/Lib/ConfigParser.py	2013-11-12 13:14:51.328456688 +0100
+@@ -87,6 +87,11 @@
+         write the configuration state in .ini format
+ """
+ 
++try:
++    from collections import OrderedDict as _default_dict
++except ImportError:
++    _default_dict = dict
++
+ import re
+ 
+ __all__ = ["NoSectionError", "DuplicateSectionError", "NoOptionError",
+@@ -215,10 +220,15 @@
+ 
+ 
+ class RawConfigParser:
+-    def __init__(self, defaults=None, dict_type=dict):
++    def __init__(self, defaults=None, dict_type=_default_dict,
++                 allow_no_value=False):
+         self._dict = dict_type
+         self._sections = self._dict()
+         self._defaults = self._dict()
++        if allow_no_value:
++            self._optcre = self.OPTCRE_NV
++        else:
++            self._optcre = self.OPTCRE
+         if defaults:
+             for key, value in defaults.items():
+                 self._defaults[self.optionxform(key)] = value
+@@ -366,7 +376,7 @@
+             return (option in self._sections[section]
+                     or option in self._defaults)
+ 
+-    def set(self, section, option, value):
++    def set(self, section, option, value=None):
+         """Set an option."""
+         if not section or section == DEFAULTSECT:
+             sectdict = self._defaults
+@@ -387,9 +397,11 @@
+         for section in self._sections:
+             fp.write("[%s]\n" % section)
+             for (key, value) in self._sections[section].items():
+-                if key != "__name__":
+-                    fp.write("%s = %s\n" %
+-                             (key, str(value).replace('\n', '\n\t')))
++                if key == "__name__":
++                    continue
++                if (value is not None) or (self._optcre == self.OPTCRE):
++                    key = " = ".join((key, str(value).replace('\n', '\n\t')))
++                fp.write("%s\n" % (key))
+             fp.write("\n")
+ 
+     def remove_option(self, section, option):
+@@ -430,6 +442,15 @@
+                                               # by any # space/tab
+         r'(?P<value>.*)$'                     # everything up to eol
+         )
++    OPTCRE_NV = re.compile(
++        r'(?P<option>[^:=\s][^:=]*)'          # very permissive!
++        r'\s*(?:'                             # any number of space/tab,
++        r'(?P<vi>[:=])\s*'                    # optionally followed by
++                                              # separator (either : or
++                                              # =), followed by any #
++                                              # space/tab
++        r'(?P<value>.*))?$'                   # everything up to eol
++        )
+ 
+     def _read(self, fp, fpname):
+         """Parse a sectioned setup file.
+@@ -482,16 +503,19 @@
+                     raise MissingSectionHeaderError(fpname, lineno, line)
+                 # an option line?
+                 else:
+-                    mo = self.OPTCRE.match(line)
++                    mo = self._optcre.match(line)
+                     if mo:
+                         optname, vi, optval = mo.group('option', 'vi', 'value')
+-                        if vi in ('=', ':') and ';' in optval:
+-                            # ';' is a comment delimiter only if it follows
+-                            # a spacing character
+-                            pos = optval.find(';')
+-                            if pos != -1 and optval[pos-1].isspace():
+-                                optval = optval[:pos]
+-                        optval = optval.strip()
++                        # This check is fine because the OPTCRE cannot
++                        # match if it would set optval to None
++                        if optval is not None:
++                            if vi in ('=', ':') and ';' in optval:
++                                # ';' is a comment delimiter only if it follows
++                                # a spacing character
++                                pos = optval.find(';')
++                                if pos != -1 and optval[pos-1].isspace():
++                                    optval = optval[:pos]
++                            optval = optval.strip()
+                         # allow empty values
+                         if optval == '""':
+                             optval = ''
+@@ -540,7 +564,7 @@
+         except KeyError:
+             raise NoOptionError(option, section)
+ 
+-        if raw:
++        if raw or value is None:
+             return value
+         else:
+             return self._interpolate(section, option, value, d)
+@@ -583,7 +607,7 @@
+         depth = MAX_INTERPOLATION_DEPTH
+         while depth:                    # Loop through this until it's done
+             depth -= 1
+-            if "%(" in value:
++            if value and "%(" in value:
+                 value = self._KEYCRE.sub(self._interpolation_replace, value)
+                 try:
+                     value = value % vars
+@@ -592,7 +616,7 @@
+                         option, section, rawval, e.args[0])
+             else:
+                 break
+-        if "%(" in value:
++        if value and "%(" in value:
+             raise InterpolationDepthError(option, section, rawval)
+         return value
+ 
+@@ -654,10 +678,16 @@
+                     option, section,
+                     "'%%' must be followed by '%%' or '(', found: %r" % (rest,))
+ 
+-    def set(self, section, option, value):
++    def set(self, section, option, value=None):
+         """Set an option.  Extend ConfigParser.set: check for string values."""
+-        if not isinstance(value, basestring):
+-            raise TypeError("option values must be strings")
++        # The only legal non-string value if we allow valueless
++        # options is None, so we need to check if the value is a
++        # string if:
++        # - we do not allow valueless options, or
++        # - we allow valueless options but the value is not None
++        if self._optcre is self.OPTCRE or value:
++            if not isinstance(value, basestring):
++                raise TypeError("option values must be strings")
+         # check for bad percent signs:
+         # first, replace all "good" interpolations
+         tmp_value = value.replace('%%', '')
+diff -u Python-2.6.6/Lib/test/test_cfgparser.py Python-2.6.6/Lib/test/test_cfgparser.py
+--- Python-2.6.6/Lib/test/test_cfgparser.py	2013-11-12 12:17:49.749769015 +0100
++++ Python-2.6.6/Lib/test/test_cfgparser.py	2013-11-12 13:16:15.799794606 +0100
+@@ -5,6 +5,7 @@
+ 
+ from test import test_support
+ 
++
+ class SortedDict(UserDict.UserDict):
+     def items(self):
+         result = self.data.items()
+@@ -26,12 +27,16 @@
+     __iter__ = iterkeys
+     def itervalues(self): return iter(self.values())
+ 
++
+ class TestCaseBase(unittest.TestCase):
++    allow_no_value = False
++
+     def newconfig(self, defaults=None):
+         if defaults is None:
+-            self.cf = self.config_class()
++            self.cf = self.config_class(allow_no_value=self.allow_no_value)
+         else:
+-            self.cf = self.config_class(defaults)
++            self.cf = self.config_class(defaults,
++                                        allow_no_value=self.allow_no_value)
+         return self.cf
+ 
+     def fromstring(self, string, defaults=None):
+@@ -41,7 +46,7 @@
+         return cf
+ 
+     def test_basic(self):
+-        cf = self.fromstring(
++        config_string = (
+             "[Foo Bar]\n"
+             "foo=bar\n"
+             "[Spacey Bar]\n"
+@@ -61,17 +66,28 @@
+             "key with spaces : value\n"
+             "another with spaces = splat!\n"
+             )
++        if self.allow_no_value:
++            config_string += (
++                "[NoValue]\n"
++                "option-without-value\n"
++                )
++
++        cf = self.fromstring(config_string)
+         L = cf.sections()
+         L.sort()
++        E = [r'Commented Bar',
++             r'Foo Bar',
++             r'Internationalized Stuff',
++             r'Long Line',
++             r'Section\with$weird%characters[' '\t',
++             r'Spaces',
++             r'Spacey Bar',
++             ]
++        if self.allow_no_value:
++            E.append(r'NoValue')
++        E.sort()
+         eq = self.assertEqual
+-        eq(L, [r'Commented Bar',
+-               r'Foo Bar',
+-               r'Internationalized Stuff',
+-               r'Long Line',
+-               r'Section\with$weird%characters[' '\t',
+-               r'Spaces',
+-               r'Spacey Bar',
+-               ])
++        eq(L, E)
+ 
+         # The use of spaces in the section names serves as a
+         # regression test for SourceForge bug #583248:
+@@ -81,6 +97,8 @@
+         eq(cf.get('Commented Bar', 'foo'), 'bar')
+         eq(cf.get('Spaces', 'key with spaces'), 'value')
+         eq(cf.get('Spaces', 'another with spaces'), 'splat!')
++        if self.allow_no_value:
++            eq(cf.get('NoValue', 'option-without-value'), None)
+ 
+         self.failIf('__name__' in cf.options("Foo Bar"),
+                     '__name__ "option" should not be exposed by the API!')
+@@ -153,8 +171,6 @@
+         self.parse_error(ConfigParser.ParsingError,
+                          "[Foo]\n  extra-spaces= splat\n")
+         self.parse_error(ConfigParser.ParsingError,
+-                         "[Foo]\noption-without-value\n")
+-        self.parse_error(ConfigParser.ParsingError,
+                          "[Foo]\n:value-without-option-name\n")
+         self.parse_error(ConfigParser.ParsingError,
+                          "[Foo]\n=value-without-option-name\n")
+@@ -220,18 +236,24 @@
+                           cf.add_section, "Foo")
+ 
+     def test_write(self):
+-        cf = self.fromstring(
++        config_string = (
+             "[Long Line]\n"
+             "foo: this line is much, much longer than my editor\n"
+             "   likes it.\n"
+             "[DEFAULT]\n"
+             "foo: another very\n"
+-            " long line"
++            " long line\n"
+             )
++        if self.allow_no_value:
++            config_string += (
++            "[Valueless]\n"
++            "option-without-value\n"
++            )
++
++        cf = self.fromstring(config_string)
+         output = StringIO.StringIO()
+         cf.write(output)
+-        self.assertEqual(
+-            output.getvalue(),
++        expect_string = (
+             "[DEFAULT]\n"
+             "foo = another very\n"
+             "\tlong line\n"
+@@ -241,6 +263,13 @@
+             "\tlikes it.\n"
+             "\n"
+             )
++        if self.allow_no_value:
++            expect_string += (
++                "[Valueless]\n"
++                "option-without-value\n"
++                "\n"
++                )
++        self.assertEqual(output.getvalue(), expect_string)
+ 
+     def test_set_string_types(self):
+         cf = self.fromstring("[sect]\n"
+@@ -339,7 +368,7 @@
+         self.get_error(ConfigParser.InterpolationDepthError, "Foo", "bar11")
+ 
+     def test_interpolation_missing_value(self):
+-        cf = self.get_interpolation_config()
++        self.get_interpolation_config()
+         e = self.get_error(ConfigParser.InterpolationError,
+                            "Interpolation Error", "name")
+         self.assertEqual(e.reference, "reference")
+@@ -459,6 +488,38 @@
+         cf = self.newconfig()
+         self.assertRaises(ValueError, cf.add_section, "DEFAULT")
+ 
++
++class SafeConfigParserTestCaseNoValue(SafeConfigParserTestCase):
++    allow_no_value = True
++
++
++class Issue7005TestCase(unittest.TestCase):
++    """Test output when None is set() as a value and allow_no_value == False.
++
++    http://bugs.python.org/issue7005
++
++    """
++
++    expected_output = "[section]\noption = None\n\n"
++
++    def prepare(self, config_class):
++        # This is the default, but that's the point.
++        cp = config_class(allow_no_value=False)
++        cp.add_section("section")
++        cp.set("section", "option", None)
++        sio = StringIO.StringIO()
++        cp.write(sio)
++        return sio.getvalue()
++
++    def test_none_as_value_stringified(self):
++        output = self.prepare(ConfigParser.ConfigParser)
++        self.assertEqual(output, self.expected_output)
++
++    def test_none_as_value_stringified_raw(self):
++        output = self.prepare(ConfigParser.RawConfigParser)
++        self.assertEqual(output, self.expected_output)
++
++
+ class SortedTestCase(RawConfigParserTestCase):
+     def newconfig(self, defaults=None):
+         self.cf = self.config_class(defaults=defaults, dict_type=SortedDict)
+@@ -483,13 +544,17 @@
+                           "o3 = 2\n"
+                           "o4 = 1\n\n")
+ 
++
+ def test_main():
+     test_support.run_unittest(
+         ConfigParserTestCase,
+         RawConfigParserTestCase,
+         SafeConfigParserTestCase,
+-        SortedTestCase
+-    )
++        SortedTestCase,
++        SafeConfigParserTestCaseNoValue,
++        Issue7005TestCase,
++        )
++
+ 
+ if __name__ == "__main__":
+     test_main()

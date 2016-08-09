@@ -1,0 +1,11 @@
+--- Lib/logging/handlers.py	2010-05-24 11:43:13.000000000 +0200
++++ handlers.py.new	2013-06-17 10:39:28.096900852 +0200
+@@ -785,8 +785,6 @@ class SysLogHandler(logging.Handler):
+         # Treat unicode messages as required by RFC 5424
+         if _unicode and type(msg) is unicode:
+             msg = msg.encode('utf-8')
+-            if codecs:
+-                msg = codecs.BOM_UTF8 + msg
+         try:
+             if self.unixsocket:
+                 try:

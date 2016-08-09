@@ -1,0 +1,40 @@
+# HG changeset patch
+# User Antoine Pitrou <solipsis@pitrou.net>
+# Date 1259423758 0
+# Node ID 83c702c17e0218df96592eb27a97a8ba63c747e0
+# Parent  14ee75b86a5f041d531bcb41e62947bdeecfc7d1
+Issue #1515: Enable use of deepcopy() with instance methods.  Patch by Robert Collins.
+
+diff --git a/Lib/copy.py b/Lib/copy.py
+--- a/Lib/copy.py
++++ b/Lib/copy.py
+@@ -260,6 +260,10 @@ d[dict] = _deepcopy_dict
+ if PyStringMap is not None:
+     d[PyStringMap] = _deepcopy_dict
+ 
++def _deepcopy_method(x, memo): # Copy instance methods
++    return type(x)(x.im_func, deepcopy(x.im_self, memo), x.im_class)
++_deepcopy_dispatch[types.MethodType] = _deepcopy_method
++
+ def _keep_alive(x, memo):
+     """Keeps a reference to the object x in the memo.
+ 
+diff --git a/Lib/test/test_copy.py b/Lib/test/test_copy.py
+--- a/Lib/test/test_copy.py
++++ b/Lib/test/test_copy.py
+@@ -672,6 +672,17 @@ class TestCopy(unittest.TestCase):
+         bar = lambda: None
+         self.assertEqual(copy.deepcopy(bar), bar)
+ 
++    def test_deepcopy_bound_method(self):
++        class Foo(object):
++            def m(self):
++                pass
++        f = Foo()
++        f.b = f.m
++        g = copy.deepcopy(f)
++        self.assertEqual(g.m, g.b)
++        self.assertTrue(g.b.im_self is g)
++        g.b()
++
+ def global_foo(x, y): return x+y

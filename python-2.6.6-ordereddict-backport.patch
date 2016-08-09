@@ -1,0 +1,538 @@
+diff -rup Python-2.6.6/Lib/_abcoll.py Python-2.6.6/Lib/_abcoll.py
+--- Python-2.6.6/Lib/_abcoll.py	2010-05-21 23:03:02.000000000 +0200
++++ Python-2.6.6/Lib/_abcoll.py	2013-05-17 15:35:47.648752730 +0200
+@@ -463,7 +463,16 @@ class MutableMapping(Mapping):
+         except KeyError:
+             pass
+ 
+-    def update(self, other=(), **kwds):
++    def update(*args, **kwds):
++        if len(args) > 2:
++            raise TypeError("update() takes at most 2 positional "
++                            "arguments ({0} given)".format(len(args)))
++        elif not args:
++            raise TypeError("update() takes at least 1 argument (0 given)")
++        self = args[0]
++        other = args[1] if len(args) >= 2 else ()
++
++
+         if isinstance(other, Mapping):
+             for key in other:
+                 self[key] = other[key]
+diff -rup Python-2.6.6/Lib/collections.py Python-2.6.6/Lib/collections.py
+--- Python-2.6.6/Lib/collections.py	2009-05-27 04:17:26.000000000 +0200
++++ Python-2.6.6/Lib/collections.py	2013-05-17 14:46:34.592272590 +0200
+@@ -1,4 +1,4 @@
+-__all__ = ['deque', 'defaultdict', 'namedtuple']
++__all__ = ['deque', 'defaultdict', 'namedtuple', 'OrderedDict']
+ # For bootstrapping reasons, the collection ABCs are defined in _abcoll.py.
+ # They should however be considered an integral part of collections.py.
+ from _abcoll import *
+@@ -9,6 +9,216 @@ from _collections import deque, defaultd
+ from operator import itemgetter as _itemgetter
+ from keyword import iskeyword as _iskeyword
+ import sys as _sys
++from itertools import imap as _imap
++from operator import eq as _eq
++try:
++    from thread import get_ident as _get_ident
++except ImportError:
++    from dummy_thread import get_ident as _get_ident
++
++class OrderedDict(dict):
++    'Dictionary that remembers insertion order'
++    # An inherited dict maps keys to values.
++    # The inherited dict provides __getitem__, __len__, __contains__, and get.
++    # The remaining methods are order-aware.
++    # Big-O running times for all methods are the same as regular dictionaries.
++
++    # The internal self.__map dict maps keys to links in a doubly linked list.
++    # The circular doubly linked list starts and ends with a sentinel element.
++    # The sentinel element never gets deleted (this simplifies the algorithm).
++    # Each link is stored as a list of length three:  [PREV, NEXT, KEY].
++
++    def __init__(self, *args, **kwds):
++        '''Initialize an ordered dictionary.  The signature is the same as
++        regular dictionaries, but keyword arguments are not recommended because
++        their insertion order is arbitrary.
++
++        '''
++        if len(args) > 1:
++            raise TypeError('expected at most 1 arguments, got %d' % len(args))
++        try:
++            self.__root
++        except AttributeError:
++            self.__root = root = []                     # sentinel node
++            root[:] = [root, root, None]
++            self.__map = {}
++        self.__update(*args, **kwds)
++
++    def __setitem__(self, key, value, dict_setitem=dict.__setitem__):
++        'od.__setitem__(i, y) <==> od[i]=y'
++        # Setting a new item creates a new link at the end of the linked list,
++        # and the inherited dictionary is updated with the new key/value pair.
++        if key not in self:
++            root = self.__root
++            last = root[0]
++            last[1] = root[0] = self.__map[key] = [last, root, key]
++        return dict_setitem(self, key, value)
++
++    def __delitem__(self, key, dict_delitem=dict.__delitem__):
++        'od.__delitem__(y) <==> del od[y]'
++        # Deleting an existing item uses self.__map to find the link which gets
++        # removed by updating the links in the predecessor and successor nodes.
++        dict_delitem(self, key)
++        link_prev, link_next, _ = self.__map.pop(key)
++        link_prev[1] = link_next                        # update link_prev[NEXT]
++        link_next[0] = link_prev                        # update link_next[PREV]
++
++    def __iter__(self):
++        'od.__iter__() <==> iter(od)'
++        # Traverse the linked list in order.
++        root = self.__root
++        curr = root[1]                                  # start at the first node
++        while curr is not root:
++            yield curr[2]                               # yield the curr[KEY]
++            curr = curr[1]                              # move to next node
++
++    def __reversed__(self):
++        'od.__reversed__() <==> reversed(od)'
++        # Traverse the linked list in reverse order.
++        root = self.__root
++        curr = root[0]                                  # start at the last node
++        while curr is not root:
++            yield curr[2]                               # yield the curr[KEY]
++            curr = curr[0]                              # move to previous node
++
++    def clear(self):
++        'od.clear() -> None.  Remove all items from od.'
++        root = self.__root
++        root[:] = [root, root, None]
++        self.__map.clear()
++        dict.clear(self)
++
++    # -- the following methods do not depend on the internal structure --
++
++    def keys(self):
++        'od.keys() -> list of keys in od'
++        return list(self)
++
++    def values(self):
++        'od.values() -> list of values in od'
++        return [self[key] for key in self]
++
++    def items(self):
++        'od.items() -> list of (key, value) pairs in od'
++        return [(key, self[key]) for key in self]
++
++    def iterkeys(self):
++        'od.iterkeys() -> an iterator over the keys in od'
++        return iter(self)
++
++    def itervalues(self):
++        'od.itervalues -> an iterator over the values in od'
++        for k in self:
++            yield self[k]
++
++    def iteritems(self):
++        'od.iteritems -> an iterator over the (key, value) pairs in od'
++        for k in self:
++            yield (k, self[k])
++
++    update = MutableMapping.update
++
++    __update = update # let subclasses override update without breaking __init__
++
++    __marker = object()
++
++    def pop(self, key, default=__marker):
++        '''od.pop(k[,d]) -> v, remove specified key and return the corresponding
++        value.  If key is not found, d is returned if given, otherwise KeyError
++        is raised.
++
++        '''
++        if key in self:
++            result = self[key]
++            del self[key]
++            return result
++        if default is self.__marker:
++            raise KeyError(key)
++        return default
++
++    def setdefault(self, key, default=None):
++        'od.setdefault(k[,d]) -> od.get(k,d), also set od[k]=d if k not in od'
++        if key in self:
++            return self[key]
++        self[key] = default
++        return default
++
++    def popitem(self, last=True):
++        '''od.popitem() -> (k, v), return and remove a (key, value) pair.
++        Pairs are returned in LIFO order if last is true or FIFO order if false.
++
++        '''
++        if not self:
++            raise KeyError('dictionary is empty')
++        key = next(reversed(self) if last else iter(self))
++        value = self.pop(key)
++        return key, value
++
++    def __repr__(self, _repr_running={}):
++        'od.__repr__() <==> repr(od)'
++        call_key = id(self), _get_ident()
++        if call_key in _repr_running:
++            return '...'
++        _repr_running[call_key] = 1
++        try:
++            if not self:
++                return '%s()' % (self.__class__.__name__,)
++            return '%s(%r)' % (self.__class__.__name__, self.items())
++        finally:
++            del _repr_running[call_key]
++
++    def __reduce__(self):
++        'Return state information for pickling'
++        items = [[k, self[k]] for k in self]
++        inst_dict = vars(self).copy()
++        for k in vars(OrderedDict()):
++            inst_dict.pop(k, None)
++        if inst_dict:
++            return (self.__class__, (items,), inst_dict)
++        return self.__class__, (items,)
++
++    def copy(self):
++        'od.copy() -> a shallow copy of od'
++        return self.__class__(self)
++
++    @classmethod
++    def fromkeys(cls, iterable, value=None):
++        '''OD.fromkeys(S[, v]) -> New ordered dictionary with keys from S.
++        If not specified, the value defaults to None.
++
++        '''
++        self = cls()
++        for key in iterable:
++            self[key] = value
++        return self
++
++    def __eq__(self, other):
++        '''od.__eq__(y) <==> od==y.  Comparison to another OD is order-sensitive
++        while comparison to a regular mapping is order-insensitive.
++
++        '''
++        if isinstance(other, OrderedDict):
++            return dict.__eq__(self, other) and all(_imap(_eq, self, other))
++        return dict.__eq__(self, other)
++
++    def __ne__(self, other):
++        'od.__ne__(y) <==> od!=y'
++        return not self == other
++
++    # -- the following methods support python 3.x style dictionary views --
++
++    def viewkeys(self):
++        "od.viewkeys() -> a set-like object providing a view on od's keys"
++        return KeysView(self)
++
++    def viewvalues(self):
++        "od.viewvalues() -> an object providing a view on od's values"
++        return ValuesView(self)
++
++    def viewitems(self):
++        "od.viewitems() -> a set-like object providing a view on od's items"
++        return ItemsView(self)
++
+ 
+ def namedtuple(typename, field_names, verbose=False):
+     """Returns a new subclass of tuple with named fields.
+diff -rup Python-2.6.6/Lib/test/test_collections.py Python-2.6.6/Lib/test/test_collections.py
+--- Python-2.6.6/Lib/test/test_collections.py	2010-05-21 23:03:02.000000000 +0200
++++ Python-2.6.6/Lib/test/test_collections.py	2013-05-17 15:36:46.720918874 +0200
+@@ -1,6 +1,6 @@
+ import unittest, doctest, operator
+ from test import test_support
+-from collections import namedtuple
++from collections import namedtuple, OrderedDict
+ import pickle, cPickle, copy
+ import keyword
+ import re
+@@ -9,9 +9,271 @@ from collections import Sized, Container
+ from collections import Set, MutableSet
+ from collections import Mapping, MutableMapping
+ from collections import Sequence, MutableSequence
++from random import shuffle
++import inspect
+ 
+ TestNT = namedtuple('TestNT', 'x y z')    # type used for pickle tests
+ 
++class TestOrderedDict(unittest.TestCase):
++
++    def test_init(self):
++        self.assertRaises(TypeError, OrderedDict, [('a', 1),('b', 2)], None)
++        pairs = [('a', 1), ('b', 2), ('c', 3), ('d', 4), ('e', 5)]
++        self.assertEqual(sorted(OrderedDict(dict(pairs)).items()), pairs)           # dict input
++        self.assertEqual(sorted(OrderedDict(**dict(pairs)).items()), pairs)         # kwds input
++        self.assertEqual(list(OrderedDict(pairs).items()), pairs)                   # pairs input
++        self.assertEqual(list(OrderedDict([('a', 1), ('b', 2), ('c', 9), ('d', 4)],
++                                          c=3, e=5).items()), pairs)                # mixed input
++
++        # make sure no positional args conflict with possible kwdargs
++        self.assertEqual(inspect.getargspec(OrderedDict.__dict__['__init__']).args,
++                         ['self'])
++
++        # Make sure that direct calls to __init__ do not clear previous contents
++        d = OrderedDict([('a', 1), ('b', 2), ('c', 3), ('d', 44), ('e', 55)])
++        d.__init__([('e', 5), ('f', 6)], g=7, d=4)
++        self.assertEqual(list(d.items()),
++            [('a', 1), ('b', 2), ('c', 3), ('d', 4), ('e', 5), ('f', 6), ('g', 7)])
++
++    def test_update(self):
++        try:
++            OrderedDict().update([('a', 1), ('b', 2)], None)                        # too many args
++        except TypeError as e:
++            self.assertEqual(str(e), "update() takes at most 2 positional arguments (3 given)")
++        except Exception as e:
++            self.fail("Unexpected exception type")
++        else:
++            self.fail("Expected an exception")
++        pairs = [('a', 1), ('b', 2), ('c', 3), ('d', 4), ('e', 5)]
++        od = OrderedDict()
++        od.update(dict(pairs))
++        self.assertEqual(sorted(od.items()), pairs)                                 # dict input
++        od = OrderedDict()
++        od.update(**dict(pairs))
++        self.assertEqual(sorted(od.items()), pairs)                                 # kwds input
++        od = OrderedDict()
++        od.update(pairs)
++        self.assertEqual(list(od.items()), pairs)                                   # pairs input
++        od = OrderedDict()
++        od.update([('a', 1), ('b', 2), ('c', 9), ('d', 4)], c=3, e=5)
++        self.assertEqual(list(od.items()), pairs)                                   # mixed input
++
++        # Issue 9137: Named argument called 'other' or 'self'
++        # shouldn't be treated specially.
++        od = OrderedDict()
++        od.update(self=23)
++        self.assertEqual(list(od.items()), [('self', 23)])
++        od = OrderedDict()
++        od.update(other={})
++        self.assertEqual(list(od.items()), [('other', {})])
++        od = OrderedDict()
++        od.update(red=5, blue=6, other=7, self=8)
++        self.assertEqual(sorted(list(od.items())),
++                         [('blue', 6), ('other', 7), ('red', 5), ('self', 8)])
++
++        # Make sure that direct calls to update do not clear previous contents
++        # add that updates items are not moved to the end
++        d = OrderedDict([('a', 1), ('b', 2), ('c', 3), ('d', 44), ('e', 55)])
++        d.update([('e', 5), ('f', 6)], g=7, d=4)
++        self.assertEqual(list(d.items()),
++            [('a', 1), ('b', 2), ('c', 3), ('d', 4), ('e', 5), ('f', 6), ('g', 7)])
++
++    def test_abc(self):
++        self.assertTrue(isinstance(OrderedDict(), MutableMapping))
++        self.assertTrue(issubclass(OrderedDict, MutableMapping))
++
++    def test_clear(self):
++        pairs = [('c', 1), ('b', 2), ('a', 3), ('d', 4), ('e', 5), ('f', 6)]
++        shuffle(pairs)
++        od = OrderedDict(pairs)
++        self.assertEqual(len(od), len(pairs))
++        od.clear()
++        self.assertEqual(len(od), 0)
++
++    def test_delitem(self):
++        pairs = [('c', 1), ('b', 2), ('a', 3), ('d', 4), ('e', 5), ('f', 6)]
++        od = OrderedDict(pairs)
++        del od['a']
++        self.assertFalse('a' in od)
++        #with self.assertRaises(KeyError):
++        #    del od['a']
++        try:
++            del od['a']
++        except KeyError as e:
++            self.assertEqual(str(e), "'a'")
++        except Exception as e:
++            self.fail("Unexpected exception type")
++        else:
++            self.fail("Expected an exception")
++        self.assertEqual(list(od.items()), pairs[:2] + pairs[3:])
++
++    def test_setitem(self):
++        od = OrderedDict([('d', 1), ('b', 2), ('c', 3), ('a', 4), ('e', 5)])
++        od['c'] = 10           # existing element
++        od['f'] = 20           # new element
++        self.assertEqual(list(od.items()),
++                         [('d', 1), ('b', 2), ('c', 10), ('a', 4), ('e', 5), ('f', 20)])
++
++    def test_iterators(self):
++        pairs = [('c', 1), ('b', 2), ('a', 3), ('d', 4), ('e', 5), ('f', 6)]
++        shuffle(pairs)
++        od = OrderedDict(pairs)
++        self.assertEqual(list(od), [t[0] for t in pairs])
++        self.assertEqual(od.keys()[:], [t[0] for t in pairs])
++        self.assertEqual(od.values()[:], [t[1] for t in pairs])
++        self.assertEqual(od.items()[:], pairs)
++        self.assertEqual(list(od.iterkeys()), [t[0] for t in pairs])
++        self.assertEqual(list(od.itervalues()), [t[1] for t in pairs])
++        self.assertEqual(list(od.iteritems()), pairs)
++        self.assertEqual(list(reversed(od)),
++                         [t[0] for t in reversed(pairs)])
++
++    def test_popitem(self):
++        pairs = [('c', 1), ('b', 2), ('a', 3), ('d', 4), ('e', 5), ('f', 6)]
++        shuffle(pairs)
++        od = OrderedDict(pairs)
++        while pairs:
++            self.assertEqual(od.popitem(), pairs.pop())
++        self.assertRaises(KeyError, od.popitem)
++        self.assertEqual(len(od), 0)
++
++    def test_pop(self):
++        pairs = [('c', 1), ('b', 2), ('a', 3), ('d', 4), ('e', 5), ('f', 6)]
++        shuffle(pairs)
++        od = OrderedDict(pairs)
++        shuffle(pairs)
++        while pairs:
++            k, v = pairs.pop()
++            self.assertEqual(od.pop(k), v)
++        self.assertRaises(KeyError, od.pop, 'xyz')
++        self.assertEqual(len(od), 0)
++        self.assertEqual(od.pop(k, 12345), 12345)
++
++        # make sure pop still works when __missing__ is defined
++        class Missing(OrderedDict):
++            def __missing__(self, key):
++                return 0
++        m = Missing(a=1)
++        self.assertEqual(m.pop('b', 5), 5)
++        self.assertEqual(m.pop('a', 6), 1)
++        self.assertEqual(m.pop('a', 6), 6)
++        self.assertRaises(KeyError, m.pop, 'a')
++
++    def test_equality(self):
++        pairs = [('c', 1), ('b', 2), ('a', 3), ('d', 4), ('e', 5), ('f', 6)]
++        shuffle(pairs)
++        od1 = OrderedDict(pairs)
++        od2 = OrderedDict(pairs)
++        self.assertEqual(od1, od2)          # same order implies equality
++        pairs = pairs[2:] + pairs[:2]
++        od2 = OrderedDict(pairs)
++        self.assertNotEqual(od1, od2)       # different order implies inequality
++        # comparison to regular dict is not order sensitive
++        self.assertEqual(od1, dict(od2))
++        self.assertEqual(dict(od2), od1)
++        # different length implied inequality
++        self.assertNotEqual(od1, OrderedDict(pairs[:-1]))
++
++    def test_copying(self):
++        # Check that ordered dicts are copyable, deepcopyable, picklable,
++        # and have a repr/eval round-trip
++        pairs = [('c', 1), ('b', 2), ('a', 3), ('d', 4), ('e', 5), ('f', 6)]
++        od = OrderedDict(pairs)
++        update_test = OrderedDict()
++        update_test.update(od)
++        for i, dup in enumerate([
++                    od.copy(),
++                    copy.copy(od),
++                    copy.deepcopy(od),
++                    pickle.loads(pickle.dumps(od, 0)),
++                    pickle.loads(pickle.dumps(od, 1)),
++                    pickle.loads(pickle.dumps(od, 2)),
++                    pickle.loads(pickle.dumps(od, -1)),
++                    eval(repr(od)),
++                    update_test,
++                    OrderedDict(od),
++                    ]):
++            self.assertTrue(dup is not od)
++            self.assertEqual(dup, od)
++            self.assertEqual(list(dup.items()), list(od.items()))
++            self.assertEqual(len(dup), len(od))
++            self.assertEqual(type(dup), type(od))
++
++    def test_yaml_linkage(self):
++        # Verify that __reduce__ is setup in a way that supports PyYAML's dump() feature.
++        # In yaml, lists are native but tuples are not.
++        pairs = [('c', 1), ('b', 2), ('a', 3), ('d', 4), ('e', 5), ('f', 6)]
++        od = OrderedDict(pairs)
++        # yaml.dump(od) -->
++        # '!!python/object/apply:__main__.OrderedDict\n- - [a, 1]\n  - [b, 2]\n'
++        self.assertTrue(all(type(pair)==list for pair in od.__reduce__()[1]))
++
++    def test_reduce_not_too_fat(self):
++        # do not save instance dictionary if not needed
++        pairs = [('c', 1), ('b', 2), ('a', 3), ('d', 4), ('e', 5), ('f', 6)]
++        od = OrderedDict(pairs)
++        self.assertEqual(len(od.__reduce__()), 2)
++        od.x = 10
++        self.assertEqual(len(od.__reduce__()), 3)
++
++    def test_repr(self):
++        od = OrderedDict([('c', 1), ('b', 2), ('a', 3), ('d', 4), ('e', 5), ('f', 6)])
++        self.assertEqual(repr(od),
++            "OrderedDict([('c', 1), ('b', 2), ('a', 3), ('d', 4), ('e', 5), ('f', 6)])")
++        self.assertEqual(eval(repr(od)), od)
++        self.assertEqual(repr(OrderedDict()), "OrderedDict()")
++
++    def test_repr_recursive(self):
++        # See issue #9826
++        od = OrderedDict.fromkeys('abc')
++        od['x'] = od
++        self.assertEqual(repr(od),
++            "OrderedDict([('a', None), ('b', None), ('c', None), ('x', ...)])")
++
++    def test_setdefault(self):
++        pairs = [('c', 1), ('b', 2), ('a', 3), ('d', 4), ('e', 5), ('f', 6)]
++        shuffle(pairs)
++        od = OrderedDict(pairs)
++        pair_order = list(od.items())
++        self.assertEqual(od.setdefault('a', 10), 3)
++        # make sure order didn't change
++        self.assertEqual(list(od.items()), pair_order)
++        self.assertEqual(od.setdefault('x', 10), 10)
++        # make sure 'x' is added to the end
++        self.assertEqual(list(od.items())[-1], ('x', 10))
++
++        # make sure setdefault still works when __missing__ is defined
++        class Missing(OrderedDict):
++            def __missing__(self, key):
++                return 0
++        self.assertEqual(Missing().setdefault(5, 9), 9)
++
++    def test_reinsert(self):
++        # Given insert a, insert b, delete a, re-insert a,
++        # verify that a is now later than b.
++        od = OrderedDict()
++        od['a'] = 1
++        od['b'] = 2
++        del od['a']
++        od['a'] = 1
++        self.assertEqual(list(od.items()), [('b', 2), ('a', 1)])
++
++    def test_views(self):
++        s = 'the quick brown fox jumped over a lazy dog yesterday before dawn'.split()
++        od = OrderedDict.fromkeys(s)
++        self.assertEqual(list(od.viewkeys()),  s)
++        self.assertEqual(list(od.viewvalues()),  [None for k in s])
++        self.assertEqual(list(od.viewitems()),  [(k, None) for k in s])
++
++    def test_override_update(self):
++        # Verify that subclasses can override update() without breaking __init__()
++        class MyOD(OrderedDict):
++            def update(self, *args, **kwds):
++                raise Exception()
++        items = [('a', 1), ('c', 3), ('b', 2)]
++        self.assertEqual(list(MyOD(items).items()), items)
++
++
+ class TestNamedTuple(unittest.TestCase):
+ 
+     def test_factory(self):
+@@ -553,7 +815,7 @@ import collections
+ 
+ def test_main(verbose=None):
+     NamedTupleDocs = doctest.DocTestSuite(module=collections)
+-    test_classes = [TestNamedTuple, NamedTupleDocs, TestOneTrickPonyABCs, TestCollectionABCs]
++    test_classes = [TestNamedTuple, NamedTupleDocs, TestOrderedDict, TestOneTrickPonyABCs, TestCollectionABCs]
+     test_support.run_unittest(*test_classes)
+     test_support.run_doctest(collections, verbose)

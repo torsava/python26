@@ -1,0 +1,50 @@
+diff -up Python-2.6.6/Lib/subprocess.py.eintr Python-2.6.6/Lib/subprocess.py
+--- Python-2.6.6/Lib/subprocess.py.eintr	2015-02-09 14:24:58.726594227 +0100
++++ Python-2.6.6/Lib/subprocess.py	2015-02-09 14:28:37.087417220 +0100
+@@ -460,7 +460,7 @@ def _eintr_retry_call(func, *args):
+     while True:
+         try:
+             return func(*args)
+-        except OSError, e:
++        except (OSError, IOError) as e:
+             if e.errno == errno.EINTR:
+                 continue
+             raise
+@@ -720,10 +720,10 @@ class Popen(object):
+                             raise
+                 self.stdin.close()
+             elif self.stdout:
+-                stdout = self.stdout.read()
++                stdout = _eintr_retry_call(self.stdout.read)
+                 self.stdout.close()
+             elif self.stderr:
+-                stderr = self.stderr.read()
++                stderr = _eintr_retry_call(self.stderr.read)
+                 self.stderr.close()
+             self.wait()
+             return (stdout, stderr)
+diff -up Python-2.6.6/Lib/test/test_subprocess.py.eintr Python-2.6.6/Lib/test/test_subprocess.py
+--- Python-2.6.6/Lib/test/test_subprocess.py.eintr	2015-02-09 14:28:56.078575768 +0100
++++ Python-2.6.6/Lib/test/test_subprocess.py	2015-02-09 14:45:07.693699367 +0100
+@@ -605,6 +605,21 @@ class ProcessTestCase(unittest.TestCase)
+                                   capture_stdout, capture_stderr, 
+                                   with_timeout)
+ 
++    def test_communicate_eintr(self):
++        # Issue #12493: communicate() should handle EINTR
++        def handler(signum, frame):
++            pass
++        old_handler = signal.signal(signal.SIGALRM, handler)
++
++        # the process is running for 2 seconds
++        args = [sys.executable, "-c", 'import time; time.sleep(2)']
++        for stream in ('stdout', 'stderr'):
++            kw = {stream: subprocess.PIPE}
++            process = subprocess.Popen(args, **kw)
++            signal.alarm(1)
++            # communicate() will be interrupted by SIGALRM
++            process.communicate()
++
+     def test_short_lived_subprocess(self):
+         # If we start a short-lived process which finishes before we begin
+         # communicating with it, we can receive a SIGPIPE due to the receiving

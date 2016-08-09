@@ -1,0 +1,39 @@
+--- Python-2.6.6/Lib/subprocess.py.orig	2013-05-07 10:45:13.000000000 +0200
++++ Python-2.6.6/Lib/subprocess.py	2013-05-07 11:05:59.570216088 +0200
+@@ -477,7 +477,10 @@
+     timeout = kwargs.pop('timeout', None)
+     p = Popen(*popenargs, **kwargs)
+     try:
+-        return p.wait(timeout=timeout)
++        if timeout == None:
++            return p.wait()
++        else:
++            return p.wait(timeout=timeout)
+     except TimeoutExpired:
+         p.kill()
+         p.wait()
+@@ -746,7 +749,10 @@
+             if stderr:
+                 stderr = self._translate_newlines(stderr)
+ 
+-        sts = self.wait(timeout=self._remaining_time(endtime))
++        if timeout == None:
++            sts = self.wait()
++        else:
++            sts = self.wait(timeout=self._remaining_time(endtime))
+ 
+         return (stdout, stderr)
+ 
+@@ -1327,7 +1333,11 @@
+                 if stderr:
+                     stderr = self._translate_newlines(stderr)
+ 
+-            self.wait(timeout=self._remaining_time(endtime))
++            # if timeout == None in calling function, we get endtime == None
++            if endtime == None:
++                self.wait()
++            else:
++                self.wait(timeout=self._remaining_time(endtime))
+             return (stdout, stderr)
+ 
+ 

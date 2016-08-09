@@ -1,0 +1,68 @@
+From 6ee47863de337ccb591d97197150c904a4ea38b9 Mon Sep 17 00:00:00 2001
+From: Benjamin Peterson <benjamin@python.org>
+Date: Tue, 30 Sep 2014 21:17:15 -0400
+Subject: [PATCH] use Py_ssize_t for file offset and length computations in
+ iteration
+
+Cherry-picked from Python 2.7: https://hg.python.org/cpython/rev/beadb3e1dc81
+Upstream issue: http://bugs.python.org/issue22526
+---
+ Objects/fileobject.c | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/Objects/fileobject.c b/Objects/fileobject.c
+index df5a102..be8581b 100644
+--- a/Objects/fileobject.c
++++ b/Objects/fileobject.c
+@@ -2045,7 +2045,7 @@ drop_readahead(PyFileObject *f)
+    (unless at EOF) and no more than bufsize.  Returns negative value on
+    error, will set MemoryError if bufsize bytes cannot be allocated. */
+ static int
+-readahead(PyFileObject *f, int bufsize)
++readahead(PyFileObject *f, Py_ssize_t bufsize)
+ {
+     Py_ssize_t chunksize;
+ 
+@@ -2083,7 +2083,7 @@ readahead(PyFileObject *f, int bufsize)
+    logarithmic buffer growth to about 50 even when reading a 1gb line. */
+ 
+ static PyStringObject *
+-readahead_get_line_skip(PyFileObject *f, int skip, int bufsize)
++readahead_get_line_skip(PyFileObject *f, Py_ssize_t skip, Py_ssize_t bufsize)
+ {
+     PyStringObject* s;
+     char *bufptr;
+@@ -2103,10 +2103,10 @@ readahead_get_line_skip(PyFileObject *f, int skip, int bufsize)
+         bufptr++;                               /* Count the '\n' */
+         len = bufptr - f->f_bufptr;
+         s = (PyStringObject *)
+-            PyString_FromStringAndSize(NULL, skip+len);
++            PyString_FromStringAndSize(NULL, skip + len);
+         if (s == NULL)
+             return NULL;
+-        memcpy(PyString_AS_STRING(s)+skip, f->f_bufptr, len);
++        memcpy(PyString_AS_STRING(s) + skip, f->f_bufptr, len);
+         f->f_bufptr = bufptr;
+         if (bufptr == f->f_bufend)
+             drop_readahead(f);
+@@ -2114,14 +2114,13 @@ readahead_get_line_skip(PyFileObject *f, int skip, int bufsize)
+         bufptr = f->f_bufptr;
+         buf = f->f_buf;
+         f->f_buf = NULL;                /* Force new readahead buffer */
+-        assert(skip+len < INT_MAX);
+-        s = readahead_get_line_skip(
+-            f, (int)(skip+len), bufsize + (bufsize>>2) );
++        assert(len <= PY_SSIZE_T_MAX - skip);
++        s = readahead_get_line_skip(f, skip + len, bufsize + (bufsize>>2));
+         if (s == NULL) {
+             PyMem_Free(buf);
+             return NULL;
+         }
+-        memcpy(PyString_AS_STRING(s)+skip, bufptr, len);
++        memcpy(PyString_AS_STRING(s) + skip, bufptr, len);
+         PyMem_Free(buf);
+     }
+     return s;
+-- 
+2.1.0
+

@@ -1,0 +1,11 @@
+--- Python-2.6.6/Python/random.c.orig	2013-06-14 08:22:58.475498569 +0200
++++ Python-2.6.6/Python/random.c	2013-06-14 08:24:13.608967322 +0200
+@@ -161,7 +161,7 @@
+     Py_END_ALLOW_THREADS
+     if (fd < 0)
+     {
+-        PyErr_SetFromErrnoWithFilename(PyExc_OSError, "/dev/urandom");
++        PyErr_SetString(PyExc_NotImplementedError, "/dev/urandom not found");
+         return -1;
+     }
+ 
