@@ -526,6 +526,11 @@ BuildRequires: systemtap-sdt-devel
 %global tapsetdir      /usr/share/systemtap/tapset
 %endif
 
+# We don't want to provide this
+# No package in Fedora shall ever depend on this
+%global __requires_exclude ^python\\(abi\\) = 2\\..$
+%global __provides_exclude ^python\\(abi\\) = 2\\..$
+
 
 URL: http://www.python.org/
 
