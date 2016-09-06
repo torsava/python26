@@ -1,15 +1,12 @@
-%{!?__python_ver:%global __python_ver EMPTY}
 #define __python_ver 26
 %global unicode ucs4
 
 %global _default_patch_fuzz 2
 
-%global main_python 1
-%global python python
-%global tkinter tkinter
-
 %global pybasever 2.6
 %global pyshortver 26
+%global main_python 0
+%global python python%{pyshortver}
 %global pylibdir %{_libdir}/python%{pybasever}
 %global tools_dir %{pylibdir}/Tools
 %global demo_dir %{pylibdir}/Demo
@@ -63,7 +60,7 @@
 # pyc/pyo files)
 
 Summary: Version %{pybasever} of the Python programming language
-Name: %{python}%{pyshortver}
+Name: %{python}
 Version: 2.6.9
 Release: 1%{?dist}
 License: Python
@@ -874,13 +871,15 @@ rm -f $RPM_BUILD_ROOT%{pylibdir}/LICENSE.txt
 #make the binaries install side by side with the main python
 %if !%{main_python}
 pushd $RPM_BUILD_ROOT%{_bindir}
-mv idle idle%{__python_ver}
-mv modulator modulator%{__python_ver}
-mv pynche pynche%{__python_ver}
-mv pygettext.py pygettext%{__python_ver}.py
-mv msgfmt.py msgfmt%{__python_ver}.py
-mv smtpd.py smtpd%{__python_ver}.py
-mv pydoc pydoc%{__python_ver}
+mv idle idle%{pybasever}
+mv modulator modulator%{pybasever}
+mv pynche pynche%{pybasever}
+mv pygettext.py pygettext%{pybasever}.py
+mv msgfmt.py msgfmt%{pybasever}.py
+mv smtpd.py smtpd%{pybasever}.py
+mv pydoc pydoc%{pybasever}
+mv 2to3 2to3-%{pybasever}
+rm python-config
 popd
 %endif
 
@@ -999,13 +998,13 @@ cp %{SOURCE8} %{buildroot}%{site_packages}
 #                                                                                                   
 # Fix shebangs in files listed in rhbz#521898                                                       
 sed -i "s|^#\! */usr/bin.*$|#\! %{__python}|" \
-    %{buildroot}%{_bindir}/pygettext.py \
-    %{buildroot}%{_bindir}/msgfmt.py \
-    %{buildroot}%{_bindir}/smtpd.py \
+    %{buildroot}%{_bindir}/pygettext%{pybasever}.py \
+    %{buildroot}%{_bindir}/msgfmt%{pybasever}.py \
+    %{buildroot}%{_bindir}/smtpd%{pybasever}.py \
     %{buildroot}%{demo_dir}/pdist/rcvs \
     %{buildroot}%{demo_dir}/pdist/rcsbump \
     %{buildroot}%{demo_dir}/pdist/rrcs \
-    %{buildroot}%{site_packages}/pynche/pynche                                                       
+    %{buildroot}%{site_packages}/pynche/pynche
 
 sed -i -e '1i#\! %{__python}' %{buildroot}%{demo_dir}/scripts/find-uname.py
 
@@ -1178,7 +1177,9 @@ rm -fr $RPM_BUILD_ROOT
 %{_includedir}/python%{pybasever}/*.h
 %exclude %{_includedir}/python%{pybasever}/%{_pyconfig_h}
 %doc Misc/README.valgrind Misc/valgrind-python.supp Misc/gdbinit
+%if %{main_python}
 %{_bindir}/python-config
+%endif
 %{_bindir}/python%{pybasever}-config
 %{_libdir}/libpython%{pybasever}.so
 
