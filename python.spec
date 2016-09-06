@@ -527,6 +527,15 @@ Patch184: CVE-2013-1752.patch
 # Resolves: rhbz#1223037
 Patch185: enable-deepcopy-with-instance-methods.patch
 
+# 00184
+# Fix for https://bugzilla.redhat.com/show_bug.cgi?id=979696
+# Fixes build of ctypes against libffi with multilib wrapper
+# Python recognizes ffi.h only if it contains "#define LIBFFI_H",
+# but the wrapper doesn't contain that, which makes the build fail
+# We patch this by also accepting "#define ffi_wrapper_h"
+# Number taken from python package, does not correspond with patch num
+Patch186: 00184-ctypes-should-build-with-libffi-multilib-wrapper.patch
+
 # The core python package contains just the executable and manpages; most of
 # the content is now in the -libs subpackage.
 # We require the correct multilib version of the -libs subpackage:
@@ -890,6 +899,8 @@ mv Modules/cryptmodule.c Modules/_cryptmodule.c
 %patch184 -p1
 
 %patch185 -p1
+
+%patch186 -p1
 
 # Don't build these crypto algorithms; instead rely on _hashlib and OpenSSL:
 for f in md5module.c md5.c shamodule.c sha256module.c sha512module.c; do

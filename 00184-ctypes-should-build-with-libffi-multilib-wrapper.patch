@@ -1,0 +1,14 @@
+diff --git a/setup.py b/setup.py
+index 83d0e06..4732d75 100644
+--- a/setup.py
++++ b/setup.py
+@@ -1933,7 +1933,8 @@ class PyBuildExt(build_ext):
+                 if not line:
+                     ffi_inc = None
+                     break
+-                if line.startswith('#define LIBFFI_H'):
++                if line.startswith('#define LIBFFI_H') or \
++                    line.startswith('#define ffi_wrapper_h'):
+                     break
+         ffi_lib = None
+         if ffi_inc is not None:
