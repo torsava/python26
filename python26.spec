@@ -526,6 +526,9 @@ BuildRequires: systemtap-sdt-devel
 %global tapsetdir      /usr/share/systemtap/tapset
 %endif
 
+# Something in the make uses /usr/bin/python
+BuildRequires: python2
+
 # We don't want to provide this
 # No package in Fedora shall ever depend on this
 %global __requires_exclude ^python\\(abi\\) = 2\\..$
