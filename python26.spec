@@ -1046,155 +1046,20 @@ rm -fr $RPM_BUILD_ROOT
 %files
 %defattr(-, root, root, -)
 %doc LICENSE README
+%doc Misc/README.valgrind Misc/valgrind-python.supp Misc/gdbinit
+%doc Tools/modulator/README.modulator
+%doc Tools/pynche/README.pynche
+
 %{_bindir}/pydoc*
 %{_bindir}/%{python}
 %if %{main_python}
 %{_bindir}/python2
 %endif # main_python
 %{_bindir}/python%{pybasever}
-%{_mandir}/*/*
-
-%doc LICENSE README
-%dir %{pylibdir}
-%dir %{dynload_dir}
-%{dynload_dir}/Python-%{version}-py%{pybasever}.egg-info
-%{dynload_dir}/_bisectmodule.so
-%{dynload_dir}/_bytesio.so
-%{dynload_dir}/_codecs_cn.so
-%{dynload_dir}/_codecs_hk.so
-%{dynload_dir}/_codecs_iso2022.so
-%{dynload_dir}/_codecs_jp.so
-%{dynload_dir}/_codecs_kr.so
-%{dynload_dir}/_codecs_tw.so
-%{dynload_dir}/_collectionsmodule.so
-%{dynload_dir}/_csv.so
-%{dynload_dir}/_ctypes.so
-%{dynload_dir}/_curses.so
-%{dynload_dir}/_curses_panel.so
-%{dynload_dir}/_elementtree.so
-%{dynload_dir}/_fileio.so
-%{dynload_dir}/_functoolsmodule.so
-%{dynload_dir}/_hashlib.so
-%{dynload_dir}/_heapq.so
-%{dynload_dir}/_hotshot.so
-%{dynload_dir}/_json.so
-%{dynload_dir}/_localemodule.so
-%{dynload_dir}/_lsprof.so
-%{dynload_dir}/_multibytecodecmodule.so
-%{dynload_dir}/_multiprocessing.so
-%{dynload_dir}/_randommodule.so
-%{dynload_dir}/_socketmodule.so
-%{dynload_dir}/_sqlite3.so
-%{dynload_dir}/_ssl.so
-%{dynload_dir}/_struct.so
-%{dynload_dir}/_weakref.so
-%{dynload_dir}/arraymodule.so
-%{dynload_dir}/audioop.so
-%{dynload_dir}/binascii.so
-%{dynload_dir}/bz2.so
-%{dynload_dir}/cPickle.so
-%{dynload_dir}/cStringIO.so
-%{dynload_dir}/cmathmodule.so
-%{dynload_dir}/_cryptmodule.so
-%{dynload_dir}/datetime.so
-%{dynload_dir}/dbm_failed.so
-%{dynload_dir}/dlmodule.so
-%{dynload_dir}/fcntlmodule.so
-%{dynload_dir}/future_builtins.so
-%{dynload_dir}/gdbmmodule.so
-%{dynload_dir}/grpmodule.so
-%{dynload_dir}/imageop.so
-%{dynload_dir}/itertoolsmodule.so
-%{dynload_dir}/linuxaudiodev.so
-%{dynload_dir}/mathmodule.so
-%{dynload_dir}/mmapmodule.so
-%{dynload_dir}/nismodule.so
-%{dynload_dir}/operator.so
-%{dynload_dir}/parsermodule.so
-%{dynload_dir}/pyexpat.so
-%{dynload_dir}/readline.so
-%{dynload_dir}/resource.so
-%{dynload_dir}/selectmodule.so
-%{dynload_dir}/spwdmodule.so
-%{dynload_dir}/stropmodule.so
-%{dynload_dir}/syslog.so
-%{dynload_dir}/termios.so
-%{dynload_dir}/timemodule.so
-%{dynload_dir}/timingmodule.so
-%{dynload_dir}/unicodedata.so
-%{dynload_dir}/xxsubtype.so
-%{dynload_dir}/zlibmodule.so
-
-%dir %{site_packages}
-%{site_packages}/README
-%{site_packages}/ordereddict-1.2-py2.6.egg-info
-%{pylibdir}/*.py*
-%{pylibdir}/*.doc
-%dir %{pylibdir}/bsddb
-%{pylibdir}/bsddb/*.py*
-%{pylibdir}/compiler
-%dir %{pylibdir}/ctypes
-%{pylibdir}/ctypes/*.py*
-%{pylibdir}/ctypes/macholib
-%{pylibdir}/curses
-%dir %{pylibdir}/distutils
-%{pylibdir}/distutils/*.py*
-%{pylibdir}/distutils/README
-%{pylibdir}/distutils/command
-%dir %{pylibdir}/email
-%{pylibdir}/email/*.py*
-%{pylibdir}/email/mime
-%{pylibdir}/encodings
-%{pylibdir}/hotshot
-%{pylibdir}/idlelib
-%dir %{pylibdir}/json
-%{pylibdir}/json/*.py*
-%{pylibdir}/lib2to3
-%exclude %{pylibdir}/lib2to3/tests
-%{pylibdir}/logging
-%{pylibdir}/multiprocessing
-%{pylibdir}/plat-linux4
-%dir %{pylibdir}/sqlite3
-%{pylibdir}/sqlite3/*.py*
-%dir %{pylibdir}/test
-%{pylibdir}/test/test_support.py*
-%{pylibdir}/test/__init__.py*
-%{pylibdir}/wsgiref
-%{pylibdir}/xml
-%if "%{_lib}" == "lib64"
-%attr(0755,root,root) %dir /usr/lib/python%{pybasever}
-%attr(0755,root,root) %dir /usr/lib/python%{pybasever}/site-packages
-%endif
-# "Makefile" and the config-32/64.h file are needed by
-# distutils/sysconfig.py:_init_posix(), so we include them in the libs
-# package, along with their parent directories (bug 531901):
-%dir %{pylibdir}/config
-%{pylibdir}/config/Makefile
-%dir %{_includedir}/python%{pybasever}
-%{_includedir}/python%{pybasever}/%{_pyconfig_h}
-
-%if 0%{?with_systemtap}
-%{tapsetdir}/%{libpython_stp}
-%doc systemtap-example.stp pyfuntop.stp
-%endif
-
-%{_libdir}/%{py_INSTSONAME}
-
-%{pylibdir}/config/*
-%exclude %{pylibdir}/config/Makefile
-%{_includedir}/python%{pybasever}/*.h
-%exclude %{_includedir}/python%{pybasever}/%{_pyconfig_h}
-%doc Misc/README.valgrind Misc/valgrind-python.supp Misc/gdbinit
 %if %{main_python}
 %{_bindir}/python-config
 %endif
 %{_bindir}/python%{pybasever}-config
-%{_libdir}/libpython%{pybasever}.so
-
-%doc Tools/modulator/README.modulator
-%doc Tools/pynche/README.pynche
-%{site_packages}/modulator
-%{site_packages}/pynche
 %{_bindir}/smtpd*.py*
 %{_bindir}/2to3*
 %{_bindir}/idle*
@@ -1202,36 +1067,25 @@ rm -fr $RPM_BUILD_ROOT
 %{_bindir}/pynche*
 %{_bindir}/pygettext*.py*
 %{_bindir}/msgfmt*.py*
-%{tools_dir}
-%{demo_dir}
-%{pylibdir}/Doc
 
-%{pylibdir}/lib-tk
-%{dynload_dir}/_tkinter.so
+%{_mandir}/*/*
 
-%{pylibdir}/bsddb/test
-%{pylibdir}/ctypes/test
-%{pylibdir}/distutils/tests
-%{pylibdir}/email/test
-%{pylibdir}/json/tests
-%{pylibdir}/lib2to3/tests
-%{pylibdir}/sqlite3/test
-%{pylibdir}/test
-%{dynload_dir}/_ctypes_test.so
-%{dynload_dir}/_testcapimodule.so
+%{pylibdir}/
 
-# We put the debug-gdb.py file inside /usr/lib/debug to avoid noise from
-# ldconfig (rhbz:562980).
-# 
-# The /usr/lib/rpm/redhat/macros defines %__debug_package to use
-# debugfiles.list, and it appears that everything below /usr/lib/debug and
-# (/usr/src/debug) gets added to this file (via LISTFILES) in
-# /usr/lib/rpm/find-debuginfo.sh
-# 
-# Hence by installing it below /usr/lib/debug we ensure it is added to the
-# -debuginfo subpackage
-# (if it doesn't, then the rpmbuild ought to fail since the debug-gdb.py 
-# payload file would be unpackaged)
+%{_includedir}/python%{pybasever}/
+%{_libdir}/%{py_INSTSONAME}
+%{_libdir}/libpython%{pybasever}.so
+
+
+%if "%{_lib}" == "lib64"
+%attr(0755,root,root) %dir /usr/lib/python%{pybasever}
+%attr(0755,root,root) %dir /usr/lib/python%{pybasever}/site-packages
+%endif
+
+%if 0%{?with_systemtap}
+%{tapsetdir}/%{libpython_stp}
+%doc systemtap-example.stp pyfuntop.stp
+%endif
 
 %changelog
 * Tue Sep 06 2016 Miro Hrončok <mhroncok@redhat.com> - 2.6.9-1
