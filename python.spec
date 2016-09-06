@@ -1197,7 +1197,6 @@ rm -fr $RPM_BUILD_ROOT
 %dir %{dynload_dir}
 %{dynload_dir}/Python-%{version}-py%{pybasever}.egg-info
 %{dynload_dir}/_bisectmodule.so
-%{dynload_dir}/_bsddb.so
 %{dynload_dir}/_bytesio.so
 %{dynload_dir}/_codecs_cn.so
 %{dynload_dir}/_codecs_hk.so
@@ -1236,7 +1235,7 @@ rm -fr $RPM_BUILD_ROOT
 %{dynload_dir}/cmathmodule.so
 %{dynload_dir}/_cryptmodule.so
 %{dynload_dir}/datetime.so
-%{dynload_dir}/dbm.so
+%{dynload_dir}/dbm_failed.so
 %{dynload_dir}/dlmodule.so
 %{dynload_dir}/fcntlmodule.so
 %{dynload_dir}/future_builtins.so
@@ -1249,7 +1248,6 @@ rm -fr $RPM_BUILD_ROOT
 %{dynload_dir}/mmapmodule.so
 %{dynload_dir}/nismodule.so
 %{dynload_dir}/operator.so
-%{dynload_dir}/ossaudiodev.so
 %{dynload_dir}/parsermodule.so
 %{dynload_dir}/pyexpat.so
 %{dynload_dir}/readline.so
@@ -1293,7 +1291,7 @@ rm -fr $RPM_BUILD_ROOT
 %exclude %{pylibdir}/lib2to3/tests
 %{pylibdir}/logging
 %{pylibdir}/multiprocessing
-%{pylibdir}/plat-linux2
+%{pylibdir}/plat-linux4
 %dir %{pylibdir}/sqlite3
 %{pylibdir}/sqlite3/*.py*
 %dir %{pylibdir}/test
