@@ -1138,6 +1138,10 @@ sed -i "s|^#\! */usr/bin.*$|#\! %{__python}|" \
 
 sed -i -e '1i#\! %{__python}' %{buildroot}%{demo_dir}/scripts/find-uname.py
 
+# Make library-files user writable
+# rhbz#1046276
+/usr/bin/chmod 755 %{buildroot}%{dynload_dir}/*.so
+/usr/bin/chmod 755 %{buildroot}%{_libdir}/libpython%{pybasever}.so.1.0
 
 # ===============================
 # Running the upstream test suite
