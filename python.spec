@@ -47,6 +47,26 @@
 # Turn this to 0 to turn off the "check" phase:
 %global run_selftest_suite 1
 
+# We want to byte-compile the .py files within the packages using the new
+# python2.6 binary.
+#
+# Unfortunately, rpmbuild's infrastructure requires us to jump through some
+# hoops to avoid byte-compiling with the system python 2 version:
+#   /usr/lib/rpm/redhat/macros sets up build policy that (amongst other things)
+# defines __os_install_post.  In particular, "brp-python-bytecompile" is
+# invoked without an argument thus using the wrong version of python
+# (/usr/bin/python2.6, that is not yet there), thus leading to
+# file not found error.  We thus override __os_install_post to avoid invoking
+# this script:
+%global __os_install_post /usr/lib/rpm/brp-compress \
+  %{!?__debug_package:/usr/lib/rpm/brp-strip %{__strip}} \
+  /usr/lib/rpm/brp-strip-static-archive %{__strip} \
+  /usr/lib/rpm/brp-strip-comment-note %{__strip} %{__objdump} \
+  /usr/lib/rpm/brp-python-hardlink
+# to remove the invocation of brp-python-bytecompile, whilst keeping the
+# invocation of brp-python-hardlink (since this should still work for python2.6
+# pyc/pyo files)
+
 Summary: An interpreted, interactive, object-oriented programming language
 Name: %{python}
 Version: 2.6.6
@@ -1136,6 +1156,19 @@ LD_LIBRARY_PATH=. ./python -c "import compileall; import sys; compileall.compile
 
 LD_LIBRARY_PATH=. ./python -O -c "import compileall; import sys; compileall.compile_dir('%{buildroot}%{dir_holding_gdb_py}', ddir='%{dir_holding_gdb_py}')"
 %endif # with_gdb_hooks
+
+# Do bytecompilation with the newly installed interpreter.
+# This is similar to the script in macros.pybytecompile
+# compile *.pyo
+find %{buildroot} -type f -a -name "*.py" -print0 | \
+    LD_LIBRARY_PATH="%{buildroot}%{dynload_dir}/:%{buildroot}%{_libdir}" \
+    PYTHONPATH="%{buildroot}%{_libdir}/python%{pybasever} %{buildroot}%{_libdir}/python%{pybasever}/site-packages" \
+    xargs -0 %{buildroot}%{_bindir}/python%{pybasever} -O -c 'import py_compile, sys; [py_compile.compile(f, dfile=f.partition("%{buildroot}")[2]) for f in sys.argv[1:]]' || :
+# compile *.pyc
+find %{buildroot} -type f -a -name "*.py" -print0 | \
+    LD_LIBRARY_PATH="%{buildroot}%{dynload_dir}/:%{buildroot}%{_libdir}" \
+    PYTHONPATH="%{buildroot}%{_libdir}/python%{pybasever} %{buildroot}%{_libdir}/python%{pybasever}/site-packages" \
+    xargs -0 %{buildroot}%{_bindir}/python%{pybasever} -O -c 'import py_compile, sys; [py_compile.compile(f, dfile=f.partition("%{buildroot}")[2], optimize=0) for f in sys.argv[1:]]' || :
 
 #
 # Systemtap hooks:
