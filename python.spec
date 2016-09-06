@@ -69,13 +69,13 @@
 
 Summary: An interpreted, interactive, object-oriented programming language
 Name: %{python}
-Version: 2.6.6
-Release: 64%{?dist}
+Version: 2.6.9
+Release: 1%{?dist}
 License: Python
 Group: Development/Languages
 Provides: python-abi = %{pybasever}
 Provides: python(abi) = %{pybasever}
-Source: http://www.python.org/ftp/python/%{version}/Python-%{version}.tar.bz2
+Source: http://www.python.org/ftp/python/%{version}/Python-%{version}.tar.xz
 
 
 # We install a collection of hooks for gdb that make it easier to debug
@@ -290,17 +290,9 @@ Patch136: python-2.6.6-crypt-module-salt-backport.patch
 # See e.g. http://bugs.python.org/issue10013
 Patch137: python-2.6.6-fix-parallel-make.patch
 
-# Fix for CVE-2011-1521, based on
-# http://hg.python.org/cpython/rev/9eeda8e3a13f/
-Patch138: python-2.6.6-CVE-2011-1521.patch
-
 # Fix for CVE-2011-1015, based on
 # http://hg.python.org/cpython/raw-rev/c6c4398293bd
 Patch139: python-2.6.6-CVE-2011-1015.patch
-
-# Fix for CVE-2010-3493, based on
-# http://hg.python.org/cpython/rev/aa30b16d07bc/
-Patch140: python-2.6.6-CVE-2010-3493.patch
 
 # Backport the fix for transient failures in multiprocess's
 # forking.Process.poll() from 2.7 to 2.6 (rhbz#685234):
@@ -350,46 +342,10 @@ Patch147: python-2.6.6-uid-gid-overflows.patch
 # (rhbz#727364)
 Patch148: python-2.6.6-distutils-cflags.patch
 
-# CVE-2012-1150/oCERT-2011-003: add -R command-line option and PYTHONHASHSEED
-# environment variable, to provide an opt-in way to protect against denial of
-# service attacks due to hash collisions within the dict and set types
-#
-# Based on the following upstream changesets:
-#  75100:6b7704fe1be1
-#  75101:19e6e55f09f3
-#  75124:04738f35e0ec
-#  75133:357e268e7c5f
-#    with the
-#        assert(_Py_HashSecret_Initialized);
-#    invocations in string_hash and unicode_hash removed, and
-#    _Py_HashSecret_Initialized made public, even in optimized builds
-#  75148:76d72e92fdea
-#  75158:65d1fe86618f
-#  75181:c7baaf0cde8d
-#  75183:bff3fd529e33
-#  75188:0f095a0f124c
-# (we don't need 75130:4c69ec7e9bca which was removed in 75150:6075df248b90
-# as superceded by 75148:76d72e92fdea)
-#
-# This also has minor documentation changes relative to upstream to indicate
-# that the randomization covers str, unicode, buffer, and datetime
-Patch149: python-2.6.6-hash-randomization.patch
-
-# Fix an endless loop in SimpleXMLRPCServer upon malformed POST request
-# (http://bugs.python.org/issue14001; CVE-2012-0845):
-Patch150: python-2.6.6-CVE-2012-0845.patch
-
-# Send encoding in SimpleHTTPServer.list_directory to protect IE7 against
-# potential XSS attacks (http://bugs.python.org/issue11442; CVE-2011-4940):
-Patch151: python-2.6.6-CVE-2011-4940.patch
-
 # Patch distutils to create ~/.pypirc securely
 # (http://bugs.python.org/issue13512; CVE-2011-4944):
 Patch152: python-2.6.6-CVE-2011-4944.patch
 
-# If hash randomization is enabled, also enable it when using expat
-# (http://bugs.python.org/issue14234; 2012-0876):
-Patch153: python-2.6.6-CVE-2012-0876.patch
 # ...and patch configure.in to verify that XML_SetHashSalt is present within
 # the expat library:
 Patch154: python-2.6.6-check-for-XML_SetHashSalt.patch
@@ -466,12 +422,6 @@ Patch169: python-2.6.6-readd-urlparse-removed-module-attributes.patch
 # (rhbz#841937)
 Patch170: python-2.6.6-Turkish-installation-fails.patch
 
-# Fix for CVE-2013-4238 --
-# SSL module fails to handle NULL bytes inside subjectAltNames general names
-# http://bugs.python.org/issue18709
-# rhbz#998784
-Patch171: python-2.6.6-CVE-2013-4238-hostname-check-bypass-in-SSL-module.patch
-
 # fix for _ssl's _get_peer_alt_names leaking memory
 # http://bugs.python.org/issue13458
 # (rhbz#1002983)
@@ -539,13 +489,7 @@ Patch180: python-2.6.6-fix-logging-module-init-when-multiprocessing-not-initiali
 # rhbz#1206572
 Patch181: CVE-2014-7185.patch
 Patch182: CVE-2014-4650.patch
-Patch183: CVE-2014-1912.patch 
-Patch184: CVE-2013-1752.patch
-
-# enable-deepcopy-with-instance-methods.patch
-# Python Issue #1515
-# Resolves: rhbz#1223037
-Patch185: enable-deepcopy-with-instance-methods.patch
+Patch183: CVE-2014-1912.patch
 
 # 00184
 # Fix for https://bugzilla.redhat.com/show_bug.cgi?id=979696
@@ -553,8 +497,12 @@ Patch185: enable-deepcopy-with-instance-methods.patch
 # Python recognizes ffi.h only if it contains "#define LIBFFI_H",
 # but the wrapper doesn't contain that, which makes the build fail
 # We patch this by also accepting "#define ffi_wrapper_h"
-# Number taken from python package, does not correspond with patch num
-Patch186: 00184-ctypes-should-build-with-libffi-multilib-wrapper.patch
+Patch184: 00184-ctypes-should-build-with-libffi-multilib-wrapper.patch
+
+# enable-deepcopy-with-instance-methods.patch
+# Python Issue #1515
+# Resolves: rhbz#1223037
+Patch185: enable-deepcopy-with-instance-methods.patch
 
 # The core python package contains just the executable and manpages; most of
 # the content is now in the -libs subpackage.
@@ -827,11 +775,7 @@ mv Modules/cryptmodule.c Modules/_cryptmodule.c
 
 %patch137 -p1 -b .fix-parallel-make
 
-%patch138 -p1
-
 %patch139 -p1
-
-%patch140 -p1
 
 %patch141 -p1
 
@@ -848,15 +792,8 @@ mv Modules/cryptmodule.c Modules/_cryptmodule.c
 
 %patch148 -p1
 
-%patch149 -p1
-
-%patch150 -p1
-
-%patch151 -p1
-
 %patch152 -p1
 
-%patch153 -p1
 %patch154 -p1 -b .check-for-XML_SetHashSalt
 
 %patch155 -p1 -b .add-RPATH-to-pyexpat
@@ -890,8 +827,6 @@ mv Modules/cryptmodule.c Modules/_cryptmodule.c
 
 %patch170 -p1
 
-%patch171 -p1
-
 %patch172 -p1
 
 %patch173 -p1
@@ -919,8 +854,6 @@ mv Modules/cryptmodule.c Modules/_cryptmodule.c
 %patch184 -p1
 
 %patch185 -p1
-
-%patch186 -p1
 
 # Don't build these crypto algorithms; instead rely on _hashlib and OpenSSL:
 for f in md5module.c md5.c shamodule.c sha256module.c sha512module.c; do
@@ -1429,6 +1362,9 @@ rm -fr $RPM_BUILD_ROOT
 # payload file would be unpackaged)
 
 %changelog
+* Tue Sep 06 2016 Miro Hrončok <mhroncok@redhat.com> - 2.6.9-1
+- Update to 2.6.9
+
 * Fri May 22 2015 Matej Stuchlik <mstuchli@redhat.com> - 2.6.6-64
 - Enable use of deepcopy() with instance methods
 Resolves: rhbz#1223037
