@@ -1,0 +1,17 @@
+diff --git a/Lib/test/test_pyexpat.py b/Lib/test/test_pyexpat.py
+index 0628a57..4a69518 100644
+--- a/Lib/test/test_pyexpat.py
++++ b/Lib/test/test_pyexpat.py
+@@ -576,7 +576,11 @@ class MalformedInputText(unittest.TestCase):
+             parser.Parse(xml, True)
+             self.fail()
+         except expat.ExpatError as e:
+-            self.assertEquals(str(e), 'XML declaration not well-formed: line 1, column 14')
++            msgs = [
++                'XML declaration not well-formed: line 1, column 13',
++                'XML declaration not well-formed: line 1, column 14',
++            ]
++            self.assertTrue(str(e) in msgs)
+ 
+ def test_main():
+     run_unittest(SetAttributeTest,

@@ -504,8 +504,15 @@ Patch184: 00184-ctypes-should-build-with-libffi-multilib-wrapper.patch
 # Resolves: rhbz#1223037
 Patch185: enable-deepcopy-with-instance-methods.patch
 
+# 00212 #
+# Fix test breakage with version 2.2.0 of Expat
+# rhbz#1353918: https://bugzilla.redhat.com/show_bug.cgi?id=1353918
+# FIXED UPSTREAM: http://bugs.python.org/issue27369
+Patch212: 00212-fix-test-pyexpat-failure.patch
+
 # Skip db related tests
 Patch186: python26-skip-db-tests.patch
+
 
 # The core python package contains just the executable and manpages; most of
 # the content is now in the -libs subpackage.
@@ -859,6 +866,8 @@ mv Modules/cryptmodule.c Modules/_cryptmodule.c
 %patch185 -p1
 
 %patch186 -p1
+
+%patch212 -p1
 
 # Don't build these crypto algorithms; instead rely on _hashlib and OpenSSL:
 for f in md5module.c md5.c shamodule.c sha256module.c sha512module.c; do
